@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>安全位置回報</title>
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; padding: 20px; }
+    button { padding: 10px 20px; font-size: 18px; margin: 10px; }
+    #result { margin: 20px; }
+    #maplink { display: block; margin: 10px auto; }
+  </style>
+</head>
+<body>
+  <h1>安全位置回報</h1>
+  <button onclick="getLocation()">回報我的位置</button>
+  <div id="result"></div>
+  <a id="maplink" href="#" target="_blank">查看地圖</a>
+
+  <script>
+    function getLocation() {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(success, error);
+      } else {
+        document.getElementById('result').innerHTML = "您的瀏覽器不支援定位功能";
+      }
+    }
+
+    function success(position) {
+      const lat = position.coords.latitude;
+      const lng = position.coords.longitude;
+      const url = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+      document.getElementById('result').innerHTML = `緯度: ${lat}, 經度: ${lng}`;
+      document.getElementById('maplink').href = url;
+      document.getElementById('maplink').innerHTML = "點此查看地圖";
+
+      // 發送位置給家人（範例：LINE Notify）
+      // 請先到 LINE Notify 取得權杖（Token）
+      const token = 'YOUR_LINE_NOTIFY_TOKEN'; // 替換成你的權杖
+      const message = `我的位置：${url}`;
+      fetch('https://notify-api.line.me/api/notify', {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer ' + token,
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: 'message=' + encodeURIComponent(message)
+      }).then(response => {
+        if (response.ok) {
+          alert('位置已發送給家人！');
+        } else {
+          alert('發送失敗，請檢查權杖是否正確');
+        }
+      }).catch(err => {
+        alert('網路錯誤');
+      });
+    }
+
+    function error() {
+      document.getElementById('result').innerHTML = "無法取得位置，請確認定位權限已開啟";
+    }
+  </script>
+</body>
+</html>
