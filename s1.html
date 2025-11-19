@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="zh">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>安全位置回報</title>
   <style>
     body { font-family: Arial, sans-serif; text-align: center; padding: 20px; }
@@ -20,7 +20,11 @@
   <script>
     function getLocation() {
       if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(success, error);
+        navigator.geolocation.getCurrentPosition(success, error, {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0
+        });
       } else {
         document.getElementById('result').innerHTML = "您的瀏覽器不支援定位功能";
       }
@@ -35,10 +39,23 @@
       document.getElementById('maplink').innerHTML = "點此查看地圖";
     }
 
-    function error() {
+    function error(err) {
+      switch (err.code) {
+        case err.PERMISSION_DENIED:
+          alert("使用者拒絕定位權限");
+          break;
+        case err.POSITION_UNAVAILABLE:
+          alert("無法取得位置資訊");
+          break;
+        case err.TIMEOUT:
+          alert("定位請求已超時");
+          break;
+        default:
+          alert("未知定位錯誤");
+          break;
+      }
       document.getElementById('result').innerHTML = "無法取得位置，請確認定位權限已開啟";
     }
   </script>
 </body>
 </html>
-
