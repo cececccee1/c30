@@ -30,30 +30,9 @@
       const lat = position.coords.latitude;
       const lng = position.coords.longitude;
       const url = `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
-      document.getElementById('result').innerHTML = `緯度: ${lat}, 經度: ${lng}`;
+      document.getElementById('result').innerHTML = `緯度: ${lat}, 經度: ${lng}<br>複製下方地圖連結發給家人`;
       document.getElementById('maplink').href = url;
       document.getElementById('maplink').innerHTML = "點此查看地圖";
-
-      // 發送位置給家人（範例：LINE Notify）
-      // 請先到 LINE Notify 取得權杖（Token）
-      const token = 'YOUR_LINE_NOTIFY_TOKEN'; // 替換成你的權杖
-      const message = `我的位置：${url}`;
-      fetch('https://notify-api.line.me/api/notify', {
-        method: 'POST',
-        headers: {
-          'Authorization': 'Bearer ' + token,
-          'Content-Type': 'application/x-www-form-urlencoded'
-        },
-        body: 'message=' + encodeURIComponent(message)
-      }).then(response => {
-        if (response.ok) {
-          alert('位置已發送給家人！');
-        } else {
-          alert('發送失敗，請檢查權杖是否正確');
-        }
-      }).catch(err => {
-        alert('網路錯誤');
-      });
     }
 
     function error() {
@@ -62,3 +41,4 @@
   </script>
 </body>
 </html>
+
