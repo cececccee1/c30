@@ -1,136 +1,157 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-  <meta charset="UTF-8">
-  <title>行動通訊訊息傳送</title>
-
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f5f5f5;
-      padding: 20px;
-    }
-
-    #chatroom {
-      max-width: 400px;
-      height: 400px;
-      margin: auto;
-      background: white;
-      border: 1px solid #ccc;
-      padding: 10px;
-      overflow-y: auto;
-    }
-
-    .msg {
-      margin: 8px 0;
-      padding: 8px 12px;
-      border-radius: 10px;
-      max-width: 70%;
-      font-size: 14px;
-    }
-
-    .me {
-      background: #007bff;
-      color: white;
-      margin-left: auto;
-      text-align: right;
-    }
-
-    .other {
-      background: #e5e5ea;
-      color: black;
-      margin-right: auto;
-    }
-
-    .time {
-      font-size: 10px;
-      opacity: 0.7;
-      margin-top: 2px;
-    }
-
-    .input-area {
-      max-width: 400px;
-      margin: 10px auto;
-      display: flex;
-    }
-
-    input {
-      flex: 1;
-      padding: 10px;
-    }
-
-    button {
-      padding: 10px;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <title>簡單聊天室 - 傳送位置與訊息</title>
+    <style>
+        #chatroom { 
+            border: 1px solid #ccc; 
+            height: 250px; 
+            overflow-y: scroll; 
+            padding: 10px; 
+            margin-bottom: 10px; 
+            background: #f9f9f9;
+        }
+        #messageInput { 
+            width: 70%; 
+            padding: 10px; 
+            border: 1px solid #ccc; 
+            border-radius: 4px; 
+        }
+        button { 
+            padding: 10px 15px; 
+            background: #007bff; 
+            color: white; 
+            border: none; 
+            cursor: pointer; 
+            border-radius: 4px; 
+            margin-left: 5px;
+        }
+        button:hover { background: #0056b3; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        .message { 
+            margin-bottom: 8px; 
+            padding: 8px; 
+            background: white; 
+            border-radius: 4px; 
+            position: relative;
+        }
+        .share-btn {
+            font-size: 12px;
+            padding: 4px 6px;
+            margin-top: 5px;
+            background: #28a745;
+            border-radius: 4px;
+        }
+    </style>
 </head>
-
 <body>
+    <h2>簡單聊天室 - 傳送位置與訊息</h2>
+    <div id="chatroom"></div>
+    
+    <input type="text" id="messageInput" placeholder="輸入訊息..." maxlength="200">
+    <button onclick="sendMessage()">傳送訊息</button>
+    <button onclick="getLocation()">📍 取得並傳送我的位置</button>
 
-  <h2 style="text-align:center;">行動通訊聊天室</h2>
+    <script>
+        const chatroom = document.getElementById('chatroom');
+        const messageInput = document.getElementById('messageInput');
 
-  <div id="chatroom"></div>
+        function addMessage(text, isLocation = false) {
+            const msg = document.createElement('div');
+            msg.className = 'message';
 
-  <div class="input-area">
-    <input type="text" id="messageInput" placeholder="輸入訊息..." />
-    <button onclick="sendMessage()">送出</button>
-  </div>
+            const time = new Date().toLocaleTimeString('zh-TW');
 
-  <script>
-    const chatroom = document.getElementById('chatroom');
-    const input = document.getElementById('messageInput');
+            msg.innerHTML = `
+                <strong>${time}：</strong>
+                <div>${text}</div>
+            `;
 
-    const myUser = '我';
-    const otherUser = '對方';
+            if (isLocation) {
+                msg.style.background = '#e8f5e8';
+                msg.style.borderLeft = '4px solid #28a745';
+            }
 
-    function addMessage(sender, text) {
-      const msg = document.createElement('div');
-      msg.classList.add('msg');
-      msg.classList.add(sender === myUser ? 'me' : 'other');
+            /* ✅ 分享按鈕 */
+            const shareBtn = document.createElement('button');
+            shareBtn.textContent = '📤 分享';
+            shareBtn.className = 'share-btn';
+            shareBtn.onclick = () => shareMessage(text);
+            msg.appendChild(shareBtn);
 
-      const time = new Date().toLocaleTimeString();
+            chatroom.appendChild(msg);
+            chatroom.scrollTop = chatroom.scrollHeight;
+        }
 
-      msg.innerHTML = `
-        <div>${text}</div>
-        <div class="time">${sender} · ${time}</div>
-      `;
+        function sendMessage() {
+            const text = messageInput.value.trim();
+            if (!text) return;
+            
+            addMessage(text);
+            messageInput.value = '';
+            
+            console.log('傳送訊息：', text);
+        }
 
-      chatroom.appendChild(msg);
-      chatroom.scrollTop = chatroom.scrollHeight;
-    }
+        function getLocation() {
+            if (!navigator.geolocation) {
+                addMessage('❌ 瀏覽器不支援 Geolocation API');
+                return;
+            }
+            
+            const btn = event.target;
+            btn.disabled = true;
+            btn.textContent = '取得中...';
+            
+            navigator.geolocation.getCurrentPosition(
+                function(position) {
+                    const lat = position.coords.latitude;
+                    const lng = position.coords.longitude;
+                    const accuracy = position.coords.accuracy;
 
-    function sendMessage() {
-      const text = input.value.trim();
-      if (!text) return;
+                    const locationMsg = `
+                        📍 我的位置：緯度 ${lat.toFixed(6)}, 經度 ${lng.toFixed(6)}
+                        (精確度 ${accuracy.toFixed(0)}m)<br>
+                        https://maps.google.com/?q=${lat},${lng}
+                    `;
 
-      // 1️⃣ 我方送出（顯示）
-      addMessage(myUser, text);
+                    addMessage(locationMsg, true);
+                    
+                    btn.disabled = false;
+                    btn.textContent = '📍 取得並傳送我的位置';
+                },
+                function(error) {
+                    let msg = '❌ 取得位置失敗：';
+                    switch(error.code) {
+                        case error.PERMISSION_DENIED: msg += '使用者拒絕分享位置'; break;
+                        case error.POSITION_UNAVAILABLE: msg += '位置資訊不可用'; break;
+                        case error.TIMEOUT: msg += '請求超時'; break;
+                        default: msg += '未知錯誤';
+                    }
+                    addMessage(msg);
+                    
+                    btn.disabled = false;
+                    btn.textContent = '📍 取得並傳送我的位置';
+                }
+            );
+        }
 
-      // 2️⃣ 模擬「經過行動網路送出」
-      fetch('/sendMessage', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          from: myUser,
-          to: otherUser,
-          message: text,
-          time: new Date().toISOString()
-        })
-      }).catch(() => {});
+        /* ✅ Web Share API */
+        function shareMessage(text) {
+            if (navigator.share) {
+                navigator.share({
+                    title: '分享聊天室訊息',
+                    text: text
+                });
+            } else {
+                alert('此裝置不支援分享功能');
+            }
+        }
 
-      input.value = '';
-
-      // 3️⃣ 模擬對方接收（行動通訊感）
-      setTimeout(() => {
-        addMessage(otherUser, '已收到你的訊息');
-      }, 1000);
-    }
-
-    // Enter 送出
-    input.addEventListener('keydown', e => {
-      if (e.key === 'Enter') sendMessage();
-    });
-  </script>
-
+        messageInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') sendMessage();
+        });
+    </script>
 </body>
 </html>
