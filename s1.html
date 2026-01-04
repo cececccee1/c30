@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8">
-  <title>行動通訊訊息傳送</title>
+  <title>行動通訊訊息分享</title>
 
   <style>
     body {
@@ -25,15 +25,15 @@
       margin: 8px 0;
       padding: 8px 12px;
       border-radius: 10px;
-      max-width: 70%;
+      max-width: 75%;
       font-size: 14px;
+      position: relative;
     }
 
     .me {
       background: #007bff;
       color: white;
       margin-left: auto;
-      text-align: right;
     }
 
     .other {
@@ -45,7 +45,16 @@
     .time {
       font-size: 10px;
       opacity: 0.7;
-      margin-top: 2px;
+      margin-top: 4px;
+    }
+
+    .share-btn {
+      font-size: 12px;
+      margin-top: 4px;
+      background: rgba(255,255,255,0.2);
+      border: none;
+      color: white;
+      cursor: pointer;
     }
 
     .input-area {
@@ -95,6 +104,15 @@
         <div class="time">${sender} · ${time}</div>
       `;
 
+      // ✅ 只對「我」的訊息加分享功能
+      if (sender === myUser) {
+        const shareBtn = document.createElement('button');
+        shareBtn.textContent = '📤 分享';
+        shareBtn.className = 'share-btn';
+        shareBtn.onclick = () => shareMessage(text);
+        msg.appendChild(shareBtn);
+      }
+
       chatroom.appendChild(msg);
       chatroom.scrollTop = chatroom.scrollHeight;
     }
@@ -103,10 +121,9 @@
       const text = input.value.trim();
       if (!text) return;
 
-      // 1️⃣ 我方送出（顯示）
       addMessage(myUser, text);
 
-      // 2️⃣ 模擬「經過行動網路送出」
+      // 模擬 API 傳送
       fetch('/sendMessage', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -120,13 +137,24 @@
 
       input.value = '';
 
-      // 3️⃣ 模擬對方接收（行動通訊感）
+      // 模擬對方回覆
       setTimeout(() => {
         addMessage(otherUser, '已收到你的訊息');
       }, 1000);
     }
 
-    // Enter 送出
+    // ✅ Web Share API
+    function shareMessage(text) {
+      if (navigator.share) {
+        navigator.share({
+          title: '分享訊息',
+          text: text
+        });
+      } else {
+        alert('此裝置不支援分享功能');
+      }
+    }
+
     input.addEventListener('keydown', e => {
       if (e.key === 'Enter') sendMessage();
     });
