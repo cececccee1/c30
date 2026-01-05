@@ -2,156 +2,183 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>簡單聊天室 - 傳送位置與訊息</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>安全位置回報系統 - 行動通訊</title>
+    
+    <!-- Leaflet開源地圖 -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        #chatroom { 
-            border: 1px solid #ccc; 
-            height: 250px; 
-            overflow-y: scroll; 
-            padding: 10px; 
-            margin-bottom: 10px; 
-            background: #f9f9f9;
+        body { 
+            font-family: Arial, sans-serif; 
+            text-align: center; 
+            padding: 20px; 
+            max-width: 600px; 
+            margin: 0 auto;
         }
-        #messageInput { 
-            width: 70%; 
-            padding: 10px; 
-            border: 1px solid #ccc; 
-            border-radius: 4px; 
-        }
+        h1 { color: #007bff; }
         button { 
-            padding: 10px 15px; 
-            background: #007bff; 
-            color: white; 
+            padding: 15px 25px; 
+            font-size: 18px; 
+            margin: 10px; 
             border: none; 
-            cursor: pointer; 
-            border-radius: 4px; 
-            margin-left: 5px;
+            border-radius: 8px; 
+            cursor: pointer;
         }
-        button:hover { background: #0056b3; }
-        button:disabled { background: #ccc; cursor: not-allowed; }
-        .message { 
-            margin-bottom: 8px; 
-            padding: 8px; 
-            background: white; 
-            border-radius: 4px; 
-            position: relative;
+        .locate-btn { background: #007bff; color: white; }
+        .share-btn { background: #28a745; color: white; }
+        .share-btn:hover { background: #218838; }
+        #status { 
+            margin: 20px 0; 
+            font-size: 20px; 
+            padding: 15px; 
+            border-radius: 8px; 
+            background: #f8f9fa;
         }
-        .share-btn {
-            font-size: 12px;
-            padding: 4px 6px;
-            margin-top: 5px;
-            background: #28a745;
-            border-radius: 4px;
+        #map { 
+            height: 350px; 
+            margin: 20px auto; 
+            border: 3px solid #007bff; 
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,123,255,0.3);
         }
+        .hidden { display: none; }
     </style>
 </head>
 <body>
-    <h2>簡單聊天室 - 傳送位置與訊息</h2>
-    <div id="chatroom"></div>
+    <h1>📍 安全位置回報系統</h1>
     
-    <input type="text" id="messageInput" placeholder="輸入訊息..." maxlength="200">
-    <button onclick="sendMessage()">傳送訊息</button>
-    <button onclick="getLocation()">📍 取得並傳送我的位置</button>
+    <!-- 長輩定位按鈕 -->
+    <div id="locate-section">
+        <button class="locate-btn" onclick="getLocation()">
+            📱 長輩：取得目前位置
+        </button>
+    </div>
+    
+    <!-- 狀態顯示 -->
+    <div id="status">請按鈕取得位置，然後分享給家人</div>
+    
+    <!-- 地圖 -->
+    <div id="map"></div>
+    
+    <!-- 分享按鈕（定位後出現） -->
+    <div id="share-section" class="hidden">
+        <button class="share-btn" onclick="shareSMS()">
+            📱 分享簡訊給家人
+        </button>
+        <button class="share-btn" onclick="shareWeb()">
+            📤 分享（LINE/WhatsApp）
+        </button>
+        <button class="locate-btn" onclick="getNewLocation()">
+            🔄 重新定位
+        </button>
+    </div>
 
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
     <script>
-        const chatroom = document.getElementById('chatroom');
-        const messageInput = document.getElementById('messageInput');
-
-        function addMessage(text, isLocation = false) {
-            const msg = document.createElement('div');
-            msg.className = 'message';
-
-            const time = new Date().toLocaleTimeString('zh-TW');
-
-            msg.innerHTML = `
-                <strong>${time}：</strong>
-                <div>${text}</div>
-            `;
-
-            if (isLocation) {
-                msg.style.background = '#e8f5e8';
-                msg.style.borderLeft = '4px solid #28a745';
-            }
-
-            /* ✅ 分享按鈕 */
-            const shareBtn = document.createElement('button');
-            shareBtn.textContent = '📤 分享';
-            shareBtn.className = 'share-btn';
-            shareBtn.onclick = () => shareMessage(text);
-            msg.appendChild(shareBtn);
-
-            chatroom.appendChild(msg);
-            chatroom.scrollTop = chatroom.scrollHeight;
+        let currentLat, currentLng, map;
+        
+        // 檢查是否為家人分享連結
+        const urlParams = new URLSearchParams(window.location.search);
+        const shareLat = parseFloat(urlParams.get('lat'));
+        const shareLng = parseFloat(urlParams.get('lng'));
+        
+        if (shareLat && shareLng) {
+            showLocation(shareLat, shareLng, '👨‍👩‍👧‍👦 家人查看模式');
         }
-
-        function sendMessage() {
-            const text = messageInput.value.trim();
-            if (!text) return;
-            
-            addMessage(text);
-            messageInput.value = '';
-            
-            console.log('傳送訊息：', text);
-        }
-
+        
         function getLocation() {
             if (!navigator.geolocation) {
-                addMessage('❌ 瀏覽器不支援 Geolocation API');
+                document.getElementById('status').innerHTML = '❌ 瀏覽器不支援定位';
                 return;
             }
             
-            const btn = event.target;
-            btn.disabled = true;
-            btn.textContent = '取得中...';
+            document.getElementById('status').innerHTML = '📡 GPS定位中，請稍候...';
+            document.querySelector('.locate-btn').disabled = true;
             
             navigator.geolocation.getCurrentPosition(
-                function(position) {
+                position => {
                     const lat = position.coords.latitude;
                     const lng = position.coords.longitude;
-                    const accuracy = position.coords.accuracy;
-
-                    const locationMsg = `
-                        📍 我的位置：緯度 ${lat.toFixed(6)}, 經度 ${lng.toFixed(6)}
-                        (精確度 ${accuracy.toFixed(0)}m)<br>
-                        https://maps.google.com/?q=${lat},${lng}
-                    `;
-
-                    addMessage(locationMsg, true);
-                    
-                    btn.disabled = false;
-                    btn.textContent = '📍 取得並傳送我的位置';
+                    showLocation(lat, lng, '✅ 長輩定位成功');
                 },
-                function(error) {
-                    let msg = '❌ 取得位置失敗：';
+                error => {
+                    let msg = '❌ 定位失敗：';
                     switch(error.code) {
-                        case error.PERMISSION_DENIED: msg += '使用者拒絕分享位置'; break;
-                        case error.POSITION_UNAVAILABLE: msg += '位置資訊不可用'; break;
-                        case error.TIMEOUT: msg += '請求超時'; break;
+                        case error.PERMISSION_DENIED: msg += '請允許定位權限'; break;
+                        case error.POSITION_UNAVAILABLE: msg += '無法取得位置訊號'; break;
+                        case error.TIMEOUT: msg += '定位超時'; break;
                         default: msg += '未知錯誤';
                     }
-                    addMessage(msg);
-                    
-                    btn.disabled = false;
-                    btn.textContent = '📍 取得並傳送我的位置';
+                    document.getElementById('status').innerHTML = msg;
+                    document.querySelector('.locate-btn').disabled = false;
+                },
+                { 
+                    enableHighAccuracy: true,  // 高精度
+                    timeout: 15000,           // 15秒超時
+                    maximumAge: 30000         // 30秒內快取有效
                 }
             );
         }
-
-        /* ✅ Web Share API */
-        function shareMessage(text) {
+        
+        function showLocation(lat, lng, statusMsg) {
+            currentLat = lat;
+            currentLng = lng;
+            
+            document.getElementById('status').innerHTML = 
+                `${statusMsg}<br>` +
+                `📍 緯度：${lat.toFixed(6)}<br>` +
+                `📍 經度：${lng.toFixed(6)}<br>` +
+                `⏰ 時間：${new Date().toLocaleString('zh-TW')}`;
+            
+            // 隱藏定位按鈕，顯示分享
+            document.getElementById('locate-section').classList.add('hidden');
+            document.getElementById('share-section').classList.remove('hidden');
+            
+            // 畫地圖
+            if (map) map.remove();
+            map = L.map('map').setView([lat, lng], 16);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap'
+            }).addTo(map);
+            L.marker([lat, lng]).addTo(map)
+                .bindPopup(`<b>目前位置</b><br>${lat.toFixed(6)}, ${lng.toFixed(6)}`)
+                .openPopup();
+        }
+        
+        // 📱 簡訊分享（核心通訊功能）
+        function shareSMS() {
+            const shareUrl = `${window.location.origin}${window.location.pathname}?lat=${currentLat}&lng=${currentLng}`;
+            const message = `安全位置回報：${shareUrl}`;
+            window.open(`sms:?body=${encodeURIComponent(message)}`, '_blank');
+        }
+        
+        // 📤 Web分享（現代手機支援）
+        function shareWeb() {
             if (navigator.share) {
                 navigator.share({
-                    title: '分享聊天室訊息',
-                    text: text
+                    title: '安全位置回報',
+                    text: `位置：${currentLat.toFixed(6)}, ${currentLng.toFixed(6)}`,
+                    url: `${window.location.origin}${window.location.pathname}?lat=${currentLat}&lng=${currentLng}`
                 });
             } else {
-                alert('此裝置不支援分享功能');
+                const shareUrl = `${window.location.origin}${window.location.pathname}?lat=${currentLat}&lng=${currentLng}`;
+                navigator.clipboard.writeText(shareUrl).then(() => {
+                    alert('分享連結已複製！可貼到LINE/簡訊');
+                });
             }
         }
-
-        messageInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') sendMessage();
-        });
+        
+        // 🔄 重新定位
+        function getNewLocation() {
+            document.getElementById('share-section').classList.add('hidden');
+            document.getElementById('locate-section').classList.remove('hidden');
+            document.getElementById('status').innerHTML = '請重新按取得位置';
+            if (map) map.remove();
+            document.querySelector('.locate-btn').disabled = false;
+        }
     </script>
 </body>
 </html>
+
